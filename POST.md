@@ -563,13 +563,13 @@ class RestaurantsOptimizationRecommendationTestVersion3 extends munit.FunSuite {
 Looks much cleaner now, isn't it?
 
 ## Conclusion
-In conclusion, I want to share the pros and cons of this approach.
+In conclusion, I want to share the pros and cons of this approach.\
 Pros:
 - Easy to create complex structures with only fields and values need for test purposes.
 - No copy-pasting and tedious refactoring for model changes.
 - Clean and readable code to show the intent of each data entry.
 
-- Cons:
+Cons:
 - Additional small self-written framework to support;
 
 A complete example can be found on [Github](https://github.com/IvannKurchenko/blog-data-prototyping)
