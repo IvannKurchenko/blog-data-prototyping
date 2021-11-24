@@ -103,7 +103,7 @@ class RestaurantsOptimizationRecommendationTestVersion1 extends munit.FunSuite {
       exchangeRate = None,
       debit = Amount(8_000, 0, usd),
       website = None
-    ),
+    )
   )
 
   test("RestaurantsOptimizationRecommendation should produce recommendation for user #1") {

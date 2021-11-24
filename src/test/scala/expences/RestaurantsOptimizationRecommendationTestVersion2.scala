@@ -84,7 +84,7 @@ class RestaurantsOptimizationRecommendationTestVersion2 extends munit.FunSuite {
       dateTime = ZonedDateTime.of(2021, 12, 7, 10, 0, 0, 0, zone).toString,
       category = groceriesCategory,
       spend = amountPrototype.copy(banknotes = 200),
-    ),
+    )
   )
 
   test("RestaurantsOptimizationRecommendation should produce recommendation for user #1") {

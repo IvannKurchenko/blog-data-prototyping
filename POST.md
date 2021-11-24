@@ -1,13 +1,15 @@
 # Complex test data prototyping with Shapeless and Monocle
 
 ## Introduction
-In these articles describes how Shapeless and Monocle libraries, along with GoF patterns and type classes derivations 
-can help generate complex data for unit tests. I'd like to ask for some patience in advance: there is going to be plenty
-of code, because problem I'm going present is pretty visible after certain code-base size and domain model complexity.
+These article describes how `shapeless` and `Monocle` libraries, along with GoF patterns and type classes derivations 
+can help generate complex data for unit tests in easy way. 
+I'd like to ask for some patience in advance: there is going to be plenty of code, because problem I'm going present
+is pretty visible after certain code-base size and domain model complexity.
 
 ## System under the test 
 For the sake of article example, let's consider Spark application for personal expenses reports calculations.\
-Main goal of such application, provide actionable recommendations for user to save some money based on expenses history. For instance, check if person spend too much money on lunch in restaurants during work week.
+Main goal of such application is to provide actionable recommendations for user ho he/she can save some money based on expenses history.
+For instance, check if user spend too much money on lunch in restaurants during work week.
 
 Let's begin with domain model definition:
 ```scala
@@ -78,7 +80,7 @@ keeping in mind system flexibility and covering other use cases, such as shoppin
 So let's consider recommendation we are going to generate:
 
 Application calculates total amount of money spend on restaurants in workweek during current and previous month.
-If those values differs on more than 75%, we can suggest generate insight to optimize expenses in this category.
+If those values differs on more than 75%, we can suggest optimizing expenses in this category.
 For simplicity, let's say we generate this report once per month.
 
 ```scala
@@ -94,7 +96,7 @@ class RestaurantsOptimizationRecommendation(clock: Clock) {
 
   /**
    * Generate recommendation per user to optimize expenses on restaurants during work week and consider options
-   * such as groceries and cooking at home.
+   * such as groceries and cooking at home. Restaurant expenses are those which contains `CategoryTags.Restaurants` in it.
    */
   def recommendation(expenses: Dataset[Expense])(implicit session: SparkSession): Dataset[ExpenseRecommendation] = {
     import session.implicits._
@@ -151,7 +153,7 @@ class RestaurantsOptimizationRecommendation(clock: Clock) {
 ```
 
 ## Writing test
-In previous section plenty of business logic has been implemented. As a next step let's try to write unit test for our job.
+Plenty of business logic has been implemented in the previous section. As a next step, let's try to write unit test for our job.
 In this unit test we will check the simplest scenario - single user spend twice more money on restaurants
 in December 2021 comparing to November 2021. Crucial part of this test is data. To test other parts of logic, among
 restaurants expenses, lets add some grocery expenses and weekend expenses.   
@@ -262,7 +264,7 @@ class RestaurantsOptimizationRecommendationTestVersion1 extends munit.FunSuite {
       exchangeRate = None,
       debit = Amount(8_000, 0, usd),
       website = None
-    ),
+    )
   )
 
   test("RestaurantsOptimizationRecommendation should produce recommendation for user #1") {
@@ -280,16 +282,16 @@ class RestaurantsOptimizationRecommendationTestVersion1 extends munit.FunSuite {
     assertEquals(actualRecommendation, expectedRecommendation)
   }
 }
-
 ````
 
-And here we can spot first problem: we have to write plenty of similar and straightforward code to instantiate
-data for our tests. Implementation and maintaining such codebase is tedious and problematic, because 
+And here we can spot first problem: we have to write a lot of similar and straightforward code to instantiate
+data for our tests, such as `Expense` objects. Implementation and maintaining of such codebase is tedious and problematic, because 
 each domain model change leads to many small fixes in the tests.
 
-Along with this, we need to fill plenty of fields with values we really don't care about in scope of tests.
-First thought would be to use default values, but this is not recommended, because test and production code 
-recommended being decoupled as much as possible. E.g. we can make `card` or `address` defaulting to some dummy values,
+Along with this, we need to fill plenty of fields with values we really don't care about in scope of tests,
+such as `card` field in `Expense` class.
+First thought would be to use default values, but this is not recommended way to go, because test and production code 
+should be decoupled as much as possible. E.g. we can make `card` or `address` defaulting to some dummy values,
 but this would lead to unexpected mistakes in production code.
 
 ## Test refactoring first iteration
@@ -376,20 +378,21 @@ class RestaurantsOptimizationRecommendationTestVersion2 extends munit.FunSuite {
       dateTime = ZonedDateTime.of(2021, 12, 7, 10, 0, 0, 0, zone).toString,
       category = groceriesCategory,
       spend = amountPrototype.copy(banknotes = 200),
-    ),
+    )
   )
 
   test("RestaurantsOptimizationRecommendation should produce recommendation for user #1") {
     // Same test code
   }
 }
-
 ```
 
-Better, but still not good enough. Two other problems can be spoted here: 
-- Prototype instantiation remain tedious, while this is writing simple code, which can be generated for us.
-- Using `copy` is not composable: if we want to apply same transformation but for different objects, we would need repeat
-same `copy` invocation. Answer to this problem - optics, Monocle in particular.
+Looks better now, but still is not good enough. We can spot two other problems in this code: 
+- Prototype instantiation remain tedious, while this is writing simple code, which can be generated for us.\
+ `Shapeless` type classes derivation capabilities can help to solve this task. 
+
+- Using `copy` is not composable: if we want to apply same transformation but for different objects, we would need repeat same `copy` invocation.\
+  Answer to this problem - optics, `Monocle` in particular.
 
 ## Prototype instantiation
 In order to instantiate any case class prototype we need to instantiate it with some "default" values, such `""` for string,
@@ -457,10 +460,17 @@ Let's create also package object for convenient import:
 package object prototype extends PrototypeSyntax
 ```
 
+Let's see small demo:
+```scala
+prototype[Amount] // creates Amount(0,0,) object instance
+```
+
+Perfect, first part is ready.
+
 ## Prototype modifications
 After we have prototype generation in place, we want to apply various composable (!) transformations to it.
-[monocle]() 's `Lens`es is another great tool which helps us with this. We can split different fields transformation
-to individual lens to compose at the end. For instance:
+[monocle 's `Lens`](https://www.optics.dev/Monocle/docs/optics/lens) is another great tool which can help us with this.
+We can split different fields transformation to individual lens to compose at the end. For instance:
 
 ```scala
 val novemberMonday = ZonedDateTime.of(2021, 11, 8, 13, 0, 0, 0, zone).toString
@@ -469,9 +479,12 @@ val user1 = GenLens[Expense](_.userId).replace(1)
 val restaurant = GenLens[Expense](_.category).replace(restaurantCategory)
 val novemberWorkday = GenLens[Expense](_.dateTime).replace(novemberMonday)
 
-val expence = prototype[Expence] 
+val expense = prototype[Expence] 
 // User #1 spend 200$ in grocery in Monday 8 of November 2021
-(user1 compose novemberWorkday compose grocery compose twoHundredUsd)(expence)
+(user1 compose novemberWorkday compose grocery compose twoHundredUsd)(expense)
+
+// This will give same result as previous line. `PrototypeSyntax.prototype` method added as shortcut for such construction.
+(user1 compose novemberWorkday compose grocery compose twoHundredUsd).prototype
 ```
 
 ## Test final refactoring
@@ -486,7 +499,7 @@ import java.time._
 
 class RestaurantsOptimizationRecommendationTestVersion3 extends munit.FunSuite {
 
-  //domain specific implicits should be outside default `Prototype` implicits 
+  //Domain specific implicits should be outside default `Prototype` implicits. 
   implicit val expenseStatusPrototype = new Prototype[ExpenseStatus](ExpenseStatuses.Completed)
 
   val zone: ZoneId = ZoneId.of("America/Chicago")
@@ -549,7 +562,7 @@ class RestaurantsOptimizationRecommendationTestVersion3 extends munit.FunSuite {
 }
 ```
 
-Much cleaner.
+Looks much cleaner now, isn't it?
 
 ## Conclusion
 As for conclusion, I want to share pros and cons of this approach.
@@ -562,7 +575,7 @@ Pros:
 Cons:
 - Additional small self written framework to support;
 
-Complete example can be found on [Github](LINK TODO)
+Complete example can be found on [Github](https://github.com/IvannKurchenko/blog-data-prototyping)
 
 ## Further reading and references
 - [Baeldung Monocle tutorial](https://www.baeldung.com/scala/monocle-optics)
