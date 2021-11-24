@@ -1,15 +1,15 @@
 # Complex test data prototyping with Shapeless and Monocle
 
 ## Introduction
-These article describes how `shapeless` and `Monocle` libraries, along with GoF patterns and type classes derivations 
-can help generate complex data for unit tests in easy way. 
-I'd like to ask for some patience in advance: there is going to be plenty of code, because problem I'm going present
-is pretty visible after certain code-base size and domain model complexity.
+This article describes how `Shapeless` and `Monocle` libraries, along with GoF patterns and type classes derivations can help
+generate complex data for unit tests in an easy way.
+I'd like to ask for some patience in advance: there is going to be plenty of code because the problem I'm going to
+present is pretty visible after certain code-base size and domain model complexity.
 
 ## System under the test 
-For the sake of article example, let's consider Spark application for personal expenses reports calculations.\
-Main goal of such application is to provide actionable recommendations for user ho he/she can save some money based on expenses history.
-For instance, check if user spend too much money on lunch in restaurants during work week.
+For the sake of the article example, let's consider Spark application for personal expenses reports calculations.
+The main goal of such an application is to provide actionable recommendations for the user on how he/she can save some money based on expenses history.
+For instance, check if a user spends too much money on lunch in restaurants during the workweek.
 
 Let's begin with domain model definition:
 ```scala
@@ -74,13 +74,11 @@ case class Amount(banknotes: Int,
                   currency: String)
 ```
 
-Despite the fact, that for now our app will produce only single financial recommendation, domain model was designed
-keeping in mind system flexibility and covering other use cases, such as shopping online or abroad.
+Despite the fact, that for now, our app will produce only a single financial recommendation, the domain model was designed keeping in mind system flexibility and covering other use cases, such as shopping online or abroad.
+So let's consider the recommendation we are going to generate:
 
-So let's consider recommendation we are going to generate:
-
-Application calculates total amount of money spend on restaurants in workweek during current and previous month.
-If those values differs on more than 75%, we can suggest optimizing expenses in this category.
+The application calculates the total amount of money spent on restaurants in the workweek during the current and previous month.
+If those values differ by more than 75%, we can suggest optimizing expenses in this category.
 For simplicity, let's say we generate this report once per month.
 
 ```scala
@@ -153,10 +151,10 @@ class RestaurantsOptimizationRecommendation(clock: Clock) {
 ```
 
 ## Writing test
-Plenty of business logic has been implemented in the previous section. As a next step, let's try to write unit test for our job.
-In this unit test we will check the simplest scenario - single user spend twice more money on restaurants
-in December 2021 comparing to November 2021. Crucial part of this test is data. To test other parts of logic, among
-restaurants expenses, lets add some grocery expenses and weekend expenses.   
+Plenty of business logic has been implemented in the previous section. As a next step, let's try to write a unit test for our job.
+In this unit test, we will check the simplest scenario - a single user spend twice more money on restaurants  in December 2021 compared to November 2021.
+A crucial part of this test is data. To test other parts of logic, among restaurants expenses,
+let's add some grocery expenses and weekend expenses.
 
 For unit test implementation [Munit](https://scalameta.org/munit/) library was used.
 
@@ -284,9 +282,9 @@ class RestaurantsOptimizationRecommendationTestVersion1 extends munit.FunSuite {
 }
 ````
 
-And here we can spot first problem: we have to write a lot of similar and straightforward code to instantiate
-data for our tests, such as `Expense` objects. Implementation and maintaining of such codebase is tedious and problematic, because 
-each domain model change leads to many small fixes in the tests.
+And here we can spot the first problem: we have to write a lot of similar and straightforward code to instantiate data
+for our tests, such as `Expense` objects. Implementation and maintenance of such a codebase are tedious and problematic
+because each domain model change leads to many small fixes in the tests.
 
 Along with this, we need to fill plenty of fields with values we really don't care about in scope of tests,
 such as `card` field in `Expense` class.
@@ -388,16 +386,16 @@ class RestaurantsOptimizationRecommendationTestVersion2 extends munit.FunSuite {
 ```
 
 Looks better now, but still is not good enough. We can spot two other problems in this code: 
-- Prototype instantiation remain tedious, while this is writing simple code, which can be generated for us.\
+- Prototype instantiation remains tedious, while this is writing simple code, which can be generated for us.\
  `Shapeless` type classes derivation capabilities can help to solve this task. 
 
-- Using `copy` is not composable: if we want to apply same transformation but for different objects, we would need repeat same `copy` invocation.\
+- Using `copy` is not composable: if we want to apply the same transformation but for different objects, we would need to repeat the same `copy` invocation.\
   Answer to this problem - optics, `Monocle` in particular.
 
 ## Prototype instantiation
-In order to instantiate any case class prototype we need to instantiate it with some "default" values, such `""` for string,
-`0` for integers, `None` for options and so on. 
-[shapeless](https://github.com/milessabin/shapeless) is a perfect tool to solve this. Generating such prototype instance,
+In order to instantiate any case class prototype, we need to instantiate it with some "default" values, such `""` for string,
+`0` for integers, `None` for options, and so on. 
+[shapeless](https://github.com/milessabin/shapeless) is a perfect tool to solve this. Generating such prototype instance
 sounds like similar deriving type class, which shapeless perfectly does. In our case, `Prototype` type class should return
 the prototype value.
 
@@ -469,8 +467,8 @@ Perfect, first part is ready.
 
 ## Prototype modifications
 After we have prototype generation in place, we want to apply various composable (!) transformations to it.
-[monocle 's `Lens`](https://www.optics.dev/Monocle/docs/optics/lens) is another great tool which can help us with this.
-We can split different fields transformation to individual lens to compose at the end. For instance:
+[monocle 's `Lens`](https://www.optics.dev/Monocle/docs/optics/lens) is another great tool that can help us with this.
+We can split different fields transformation to an individual lens to compose at the end. For instance:
 
 ```scala
 val novemberMonday = ZonedDateTime.of(2021, 11, 8, 13, 0, 0, 0, zone).toString
@@ -565,17 +563,16 @@ class RestaurantsOptimizationRecommendationTestVersion3 extends munit.FunSuite {
 Looks much cleaner now, isn't it?
 
 ## Conclusion
-As for conclusion, I want to share pros and cons of this approach.
-
+In conclusion, I want to share the pros and cons of this approach.
 Pros:
 - Easy to create complex structures with only fields and values need for test purposes.
 - No copy-pasting and tedious refactoring for model changes.
-- Clean and readable code to show intent of each data entry.
+- Clean and readable code to show the intent of each data entry.
 
-Cons:
-- Additional small self written framework to support;
+- Cons:
+- Additional small self-written framework to support;
 
-Complete example can be found on [Github](https://github.com/IvannKurchenko/blog-data-prototyping)
+A complete example can be found on [Github](https://github.com/IvannKurchenko/blog-data-prototyping)
 
 ## Further reading and references
 - [Baeldung Monocle tutorial](https://www.baeldung.com/scala/monocle-optics)
